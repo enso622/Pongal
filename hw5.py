@@ -1,7 +1,7 @@
 # ---------------------------------------------------- #
-# File: hw4.py
+# File: hw5.py
 # ---------------------------------------------------- #
-# Author(s): Michael Casterlin & Nita Soni, Mcasterlin
+# Author(s): Michael Casterlin & Nita Soni, mcasterlin
 # ---------------------------------------------------- #
 # Plaftorm:    {Windows 7}
 # Environment: Python 2.7.8
@@ -19,6 +19,28 @@
 # TODO:
 # - 
 # ---------------------------------------------------- #
+
+#               .,-:;//;:=,
+#           . :H@@@MM@M#H/.,+%;,
+#        ,/X+ +M@@M@MM%=,-%HMMM@X/,
+#      -+@MM; $M@@MH+-,;XMMMM@MMMM@+-
+#     ;@M@@M- XM@X;. -+XXXXXHHH@M@M#@/.
+#   ,%MM@@MH ,@%=             .---=-=:=,.
+#   =@#@@@MX.,                -%HX$$%%%:;
+#  =-./@M@M$                   .;@MMMM@MM:
+#  X@/ -$MM/                    . +MM@@@M$
+# ,@M@H: :@:                    . =X#@@@@-
+# ,@@@MMX, .                    /H- ;@M@M=
+# .H@@@@M@+,                    %MM+..%#$.
+#  /MMMM@MMH/.                  XM@MH; =;
+#   /%+%$XHH@$=              , .H@@@@MX,
+#    .=--------.           -%H.,@@@@@MX,
+#    .%MM@@@HHHXX$$$%+- .:$MMX =M@@MM%.
+#      =XMMM@MM@MM#H;,-+HMM@M+ /MMMX=
+#        =%@M@M#@$-.=$@MM@@@M; %M%=
+#          ,:+$+-,/H#MMMMMMM@= =,
+#                =++%%%%+/:-.
+
 '''
 #Psuedocode/Outline
 import tKinter, numpy, random, tkFont
@@ -80,10 +102,14 @@ class GUI(tk.Frame):
         master.bind("<KeyRelease-Up>", self.pong.paddle_right.stop_right)
         master.bind("<Down>", self.pong.paddle_right.lower)
         master.bind("<KeyRelease-Down>", self.pong.paddle_right.stop_right)
-        master.bind("d", self.pong.enable_left_warp)
+        master.bind("d", lambda event: self.pong.enable_left_warp(0))
+        master.bind("a", lambda event: self.pong.enable_left_warp(1))
         master.bind("<KeyRelease-d>", self.pong.disable_left_warp)
-        master.bind("<Left>", self.pong.enable_right_warp)
+        master.bind("<KeyRelease-a>", self.pong.disable_left_warp)
+        master.bind("<Left>", lambda event: self.pong.enable_right_warp(0))
+        master.bind("<Right>", lambda event: self.pong.enable_right_warp(1))
         master.bind("<KeyRelease-Left>", self.pong.disable_right_warp)
+        master.bind("<KeyRelease-Right>", self.pong.disable_right_warp)
 
     # creates buttons to exit the game or reset the field conditions
     def createWidgets(self):
@@ -95,13 +121,13 @@ class GUI(tk.Frame):
         app.field.delete("all")
         #Create paddles
         if self.pong.lwarp_enable == True:
-            p1_color = "orange"
+            p1_color = self.pong.lwarp
         else:
-            p1_color = "dark red"
+            p1_color = "green"
         if self.pong.rwarp_enable == True:
-            p2_color = "cyan"
+            p2_color = self.pong.rwarp
         else:
-            p2_color = "blue"
+            p2_color = "green"
 
         self.field.create_rectangle(20, self.pong.paddle_left.height, 50, (self.pong.paddle_left.height-100), fill=p1_color)
         self.field.create_rectangle(950, self.pong.paddle_right.height, 980, (self.pong.paddle_right.height-100), fill=p2_color)
@@ -134,7 +160,9 @@ class GUI(tk.Frame):
             self.field.create_text(500,50,text=str("Reversing Gravity!"), fill="Red", font=ourFont)
         #Paddle Portals
         self.field.create_rectangle(self.pong.orange_portal.space[0][0], self.pong.orange_portal.space[0][1], self.pong.orange_portal.space[1][0], self.pong.orange_portal.space[1][1], fill="orange")
-        self.field.create_rectangle(self.pong.blue_portal.space[0][0], self.pong.blue_portal.space[0][1], self.pong.blue_portal.space[1][0], self.pong.blue_portal.space[1][1], fill = "cyan")
+        self.field.create_rectangle(self.pong.cyan_portal.space[0][0], self.pong.cyan_portal.space[0][1], self.pong.cyan_portal.space[1][0], self.pong.cyan_portal.space[1][1], fill = "cyan")
+        self.field.create_rectangle(self.pong.red_portal.space[0][0], self.pong.red_portal.space[0][1], self.pong.red_portal.space[1][0], self.pong.red_portal.space[1][1], fill = "red")
+        self.field.create_rectangle(self.pong.blue_portal.space[0][0], self.pong.blue_portal.space[0][1], self.pong.blue_portal.space[1][0], self.pong.blue_portal.space[1][1], fill = "blue")
         self.field.pack()
 
 #Class for creatting the two paddle objects use to interact with the game
@@ -277,6 +305,8 @@ class Pong(object):
         self.start_check = True
         self.lwarp_enable = False
         self.rwarp_enable = False
+        self.lwarp = None
+        self.rwarp = None
 
         # Game events: Ball hits [upper wall, lower wall, left paddle, right paddle, left wall, right wall]
         self.events = [lambda: self.ball.position[1] > 10,
@@ -331,23 +361,35 @@ class Pong(object):
 
     def randomize_portals(self):
         y_positions = [10,490]
-        self.orange_portal = Portal("orange", "blue", (random.randrange(100,900), random.choice(y_positions)))
-        self.blue_portal = Portal("blue", "orange", (random.randrange(100,900),random.choice(y_positions)))
-        self.portals = {"orange":self.orange_portal, "blue":self.blue_portal}
+        self.orange_portal = Portal("orange", "cyan", (random.randrange(100,900), random.choice(y_positions)))
+        self.cyan_portal = Portal("cyan", "orange", (random.randrange(100,900),random.choice(y_positions)))
+        self.red_portal = Portal("red", "blue", (random.randrange(100,900),random.choice(y_positions)))
+        self.blue_portal = Portal("blue", "red", (random.randrange(100,900), random.choice(y_positions)))
+        self.portals = {"orange":self.orange_portal, "cyan":self.cyan_portal, "red":self.red_portal, "blue":self.blue_portal}
         self.random_cooldown = 0
         self.start_check = False
 
-    def enable_left_warp(self,event):
+    def enable_left_warp(self, event):
         self.lwarp_enable = True
+        if event == 0:
+            self.lwarp = "orange"
+        elif event == 1:
+            self.lwarp = "cyan"
 
     def disable_left_warp(self, event):
         self.lwarp_enable = False
+        self.lwarp = None
 
     def enable_right_warp(self, event):
         self.rwarp_enable = True
+        if event == 0:
+            self.rwarp = "red"
+        elif event == 1:
+            self.rwarp = "blue"
 
     def disable_right_warp(self, event):
         self.rwarp_enable = False
+        self.rwarp = None
 
     def warp(self, side):
         self.ball.hitTally +=1
@@ -358,11 +400,11 @@ class Pong(object):
             theta_added = (pi/2)
 
         if side == "left" and self.lwarp_enable == True: # Combine these at some point
-            self.ball.position = self.portals["orange"].center
+            self.ball.position = self.portals[self.lwarp].center
             theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
             self.ball.velocity = (self.ball.speed*cos(theta_added+theta_in), (self.ball.speed*sin(theta_added+theta_in)))
         elif side == "right" and self.rwarp_enable == True:
-            self.ball.position = self.portals["blue"].center
+            self.ball.position = self.portals[self.rwarp].center
             theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
             self.ball.velocity = (self.ball.speed*cos(theta_added+theta_in), (self.ball.speed*sin(theta_added+theta_in)))
 
