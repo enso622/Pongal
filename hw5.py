@@ -76,6 +76,7 @@ import Tkinter as tk
 from numpy import sin, pi, cos, arctan
 import random
 import tkFont
+import math
 
 class GUI(tk.Frame):
 
@@ -154,14 +155,14 @@ class GUI(tk.Frame):
         #         if timestamp > 1000
             # self.field.create_text(500,50,text = str(i), fill="Red", font=ourFont)
         if self.pong.gravity_cooldown > 8500 and self.pong.gravity_cooldown < 9000:
-            self.field.create_text(500,50,text=str("3..."), fill="Red", font=ourFont)
+            self.field.create_text(500,50,text=str("3..."), fill="green", font=ourFont)
             self.pong.start_check = False
         if self.pong.gravity_cooldown >= 9000 and self.pong.gravity_cooldown <= 9500:
-            self.field.create_text(500,50,text = str("2..."), fill="Red", font=ourFont)
+            self.field.create_text(500,50,text = str("2..."), fill="green", font=ourFont)
         if self.pong.gravity_cooldown > 9500 and self.pong.gravity_cooldown < 10000:
-            self.field.create_text(500,50,text = str("1..."), fill="Red", font=ourFont)
+            self.field.create_text(500,50,text = str("1..."), fill="green", font=ourFont)
         if self.pong.gravity_cooldown <= 1000 and self.pong.start_check == False:
-            self.field.create_text(500,50,text=str("Reversing Gravity!"), fill="Red", font=ourFont)
+            self.field.create_text(500,50,text=str("Reversing Gravity!"), fill="green", font=ourFont)
         #Paddle Portals
         self.field.create_rectangle(self.pong.orange_portal.space[0][0], self.pong.orange_portal.space[0][1], self.pong.orange_portal.space[1][0], self.pong.orange_portal.space[1][1], fill="orange")
         self.field.create_rectangle(self.pong.cyan_portal.space[0][0], self.pong.cyan_portal.space[0][1], self.pong.cyan_portal.space[1][0], self.pong.cyan_portal.space[1][1], fill = "cyan")
@@ -171,11 +172,13 @@ class GUI(tk.Frame):
 
 #Class for creatting the two paddle objects use to interact with the game
 class Paddle(object):
-    def __init__(self, position, upbutton, downbutton):
+    def __init__(self, height, x_location, upbutton, downbutton):
         """
         Create a pong paddle with the given position and keybindings
         """
-        self.height = position
+        self.height = height
+        self.x = x_location
+        self.center = (self.x, (self.height - 50))
         self.KeyUp = upbutton
         self.KeyDown = downbutton
         self.move_up = False
@@ -215,6 +218,8 @@ class Paddle(object):
 
         if self.move_down == True and self.height <= 500:
             self.height += 10
+
+        self.center = (self.x, self.height-50)
         
         app.draw()
 
@@ -297,8 +302,8 @@ class Pong(object):
         Create a pong game. Create standard pong objects, events, and
         responses.
         """
-        self.paddle_left = Paddle(300,"w","s")
-        self.paddle_right = Paddle(300,"<Up>","<Down>")
+        self.paddle_left = Paddle(300, 35, "w","s")
+        self.paddle_right = Paddle(300, 965, "<Up>","<Down>")
         self.ball = Ball((500,250), 10, 4)
         self.randomize_portals()
         self.catcher = None
@@ -341,7 +346,7 @@ class Pong(object):
     def hits_left_paddle(self):
         if self.ball.velocity[0]<0:
             return self.ball.position[0] < 50 and self.ball.position[1] <= self.paddle_left.height and self.ball.position[1] >= self.paddle_left.height-100
-    
+        
     # Pong event for ball collision with right paddle
     def hits_right_paddle(self):
         if self.ball.velocity[0]>0:
@@ -349,9 +354,8 @@ class Pong(object):
 
     def hits_portal(self):
         for i in self.portals:
-            if self.portal_cooldown >= 100 and self.ball.position[0] < self.portals[i].space[1][0] and self.ball.position[0] > self.portals[i].space[0][0] and self.ball.position[1] > (self.portals[i].center[1]-10) and self.ball.position[1] < (self.portals[i].center[1]+10):
+            if self.ball.position[0] < self.portals[i].space[1][0] and self.ball.position[0] > self.portals[i].space[0][0] and self.ball.position[1] > (self.portals[i].center[1]-10) and self.ball.position[1] < (self.portals[i].center[1]+10):
                 self.catcher = self.portals[i].color_in
-                self.portal_cooldown = 0
                 return True               
 
     def change_gravity(self):
@@ -359,9 +363,21 @@ class Pong(object):
         self.gravity_cooldown = 0
         
     def teleport(self):
-        self.ball.position = self.portals[self.portals[self.catcher].color_out].center
-        if self.portals[self.catcher].center[1] == self.portals[self.portals[self.catcher].color_out].center[1]:
-            self.ball.velocity = (-self.ball.velocity[0], -self.ball.velocity[1])
+        if self.portal_cooldown >= 100:
+            if self.portals[self.catcher].override == True:
+                theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
+                if self.catcher == "cyan" or self.catcher == "orange":
+                    self.ball.position = self.paddle_left.center
+                    theta_out = sign(theta_in)*((pi/2)-abs(theta_in))
+                elif self.catcher == "red" or self.catcher == "blue":
+                    self.ball.position = self.paddle_right.center
+                    theta_out = sign(theta_in)*((pi/2)-abs(theta_in))+pi
+                self.ball.velocity = (self.ball.speed*cos(theta_out), (self.ball.speed*sin(-theta_out)))
+            else:
+                self.ball.position = self.portals[self.portals[self.catcher].color_out].center
+                if self.portals[self.catcher].center[1] == self.portals[self.portals[self.catcher].color_out].center[1]:
+                    self.ball.velocity = (-self.ball.velocity[0], -self.ball.velocity[1])
+            self.portal_cooldown = 0
 
     def randomize_portals(self):
         y_positions = [10,490]
@@ -377,40 +393,57 @@ class Pong(object):
         self.lwarp_enable = True
         if event == 0:
             self.lwarp = "orange"
+            self.cyan_portal.override = True
         elif event == 1:
             self.lwarp = "cyan"
+            self.orange_portal.override = True
+        #self.portals[lwarp].close()
 
     def disable_left_warp(self, event):
         self.lwarp_enable = False
         self.lwarp = None
+        self.orange_portal.override = False
+        self.cyan_portal.override = False
+        #self.portals[lwarp].open()
 
     def enable_right_warp(self, event):
         self.rwarp_enable = True
+        self.override = True
         if event == 0:
             self.rwarp = "red"
+            self.blue_portal.override = True
         elif event == 1:
             self.rwarp = "blue"
+            self.red_portal.override = True
+        #self.portals[rwarp].close()
 
     def disable_right_warp(self, event):
         self.rwarp_enable = False
         self.rwarp = None
+        self.red_portal.override = False
+        self.blue_portal.override = False
+        #self.portals[rwarp].open()
 
     def warp(self, side):
-        self.ball.hitTally +=1
+        if self.portal_cooldown >= 100:
+            self.ball.hitTally +=1
 
-        if self.blue_portal.center[1] == 10:
-            theta_added = (3*pi/2)
-        elif self.blue_portal.center[1] == 490:
-            theta_added = (pi/2)
-
-        if side == "left" and self.lwarp_enable == True: # Combine these at some point
-            self.ball.position = self.portals[self.lwarp].center
-            theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
-            self.ball.velocity = (self.ball.speed*cos(theta_added+theta_in), (self.ball.speed*sin(theta_added+theta_in)))
-        elif side == "right" and self.rwarp_enable == True:
-            self.ball.position = self.portals[self.rwarp].center
-            theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
-            self.ball.velocity = (self.ball.speed*cos(theta_added+theta_in), (self.ball.speed*sin(theta_added+theta_in)))
+            if side == "left" and self.lwarp_enable == True: # Combine these at some point
+                if self.portals[self.lwarp].center[1] == 10:
+                    theta_added = (3*pi/2)
+                elif self.portals[self.lwarp].center[1] == 490:
+                    theta_added = (pi/2)
+                self.ball.position = self.portals[self.lwarp].center
+                theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
+                self.ball.velocity = (self.ball.speed*cos(theta_added+theta_in), (self.ball.speed*sin(theta_added+theta_in)))
+            elif side == "right" and self.rwarp_enable == True:
+                if self.portals[self.rwarp].center[1] == 10:
+                    theta_added = (3*pi/2)
+                elif self.portals[self.rwarp].center[1] == 490:
+                    theta_added = (pi/2)
+                self.ball.position = self.portals[self.rwarp].center
+                theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
+                self.ball.velocity = (self.ball.speed*cos(theta_added+theta_in), (self.ball.speed*sin(theta_added+theta_in)))
 
     def step(self):
         """
@@ -423,6 +456,9 @@ class Pong(object):
         self.portal_cooldown += 5
         self.random_cooldown += 5
         self.gravity_cooldown += 5
+
+        #for testing purposes - delete
+        #self.ball.velocity = (cos(pi/4), sin(-pi/4))
 
         # Check for events
         for event, response in zip(self.events, self.responses):
@@ -455,10 +491,18 @@ class Score(object):
 
 class Portal(object):
     def __init__(self, color_in, color_out, center):
+        self.override = False
         self.color_in = color_in
         self.color_out = color_out # portal which serves as exit
         self.center = center
+        self.open()
+
+    def open(self):
         self.space = ((self.center[0]-50, self.center[1]+5),(self.center[0]+50, self.center[1]-5))
+
+    def close(self):
+        self.space = ((0,0),(0,0),(0,0),(0,0))
+
 
 
 def dot(x, y):
@@ -478,6 +522,12 @@ def add(x, y):
     2D vector addition
     """
     return (x[0]+y[0], x[1]+y[1])
+
+def sign(x):
+    """
+    determines the sign of a given value
+    """
+    return math.copysign(1, x)
 
 root = tk.Tk()
 score = Score()
