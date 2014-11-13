@@ -138,8 +138,8 @@ class GUI(tk.Frame):
         self.field.create_rectangle(950, self.pong.paddle_right.height, 980, (self.pong.paddle_right.height-100), fill=p2_color)
         #Display score
         ourFont = tkFont.Font(family='Helvetica',size=20)
-        app.field.create_text(250, 25, text=str(score.scoreP1), fill = "dark green", font=ourFont)
-        app.field.create_text(750, 25, text=str(score.scoreP2), fill = "dark green", font=ourFont)
+        app.field.create_text(250, 35, text=str(score.scoreP1), fill = "dark green", font=ourFont)
+        app.field.create_text(750, 35, text=str(score.scoreP2), fill = "dark green", font=ourFont)
         #Create field details
         self.field.create_line(500, 0, 500, 500, fill="dark green", width=3)
         self.field.create_oval(400,150,600,350, outline ="dark green", width=3)
@@ -155,19 +155,23 @@ class GUI(tk.Frame):
         #         if timestamp > 1000
             # self.field.create_text(500,50,text = str(i), fill="Red", font=ourFont)
         if self.pong.gravity_cooldown > 8500 and self.pong.gravity_cooldown < 9000:
-            self.field.create_text(500,50,text=str("3..."), fill="green", font=ourFont)
+            self.field.create_text(500,50,text=str("3..."), fill="yellow", font=ourFont)
             self.pong.start_check = False
         if self.pong.gravity_cooldown >= 9000 and self.pong.gravity_cooldown <= 9500:
-            self.field.create_text(500,50,text = str("2..."), fill="green", font=ourFont)
+            self.field.create_text(500,50,text = str("2..."), fill="yellow", font=ourFont)
         if self.pong.gravity_cooldown > 9500 and self.pong.gravity_cooldown < 10000:
-            self.field.create_text(500,50,text = str("1..."), fill="green", font=ourFont)
+            self.field.create_text(500,50,text = str("1..."), fill="yellow", font=ourFont)
         if self.pong.gravity_cooldown <= 1000 and self.pong.start_check == False:
-            self.field.create_text(500,50,text=str("Reversing Gravity!"), fill="green", font=ourFont)
+            self.field.create_text(500,50,text=str("Reversing Gravity!"), fill="yellow", font=ourFont)
         #Paddle Portals
-        self.field.create_rectangle(self.pong.orange_portal.space[0][0], self.pong.orange_portal.space[0][1], self.pong.orange_portal.space[1][0], self.pong.orange_portal.space[1][1], fill="orange")
-        self.field.create_rectangle(self.pong.cyan_portal.space[0][0], self.pong.cyan_portal.space[0][1], self.pong.cyan_portal.space[1][0], self.pong.cyan_portal.space[1][1], fill = "cyan")
-        self.field.create_rectangle(self.pong.red_portal.space[0][0], self.pong.red_portal.space[0][1], self.pong.red_portal.space[1][0], self.pong.red_portal.space[1][1], fill = "red")
-        self.field.create_rectangle(self.pong.blue_portal.space[0][0], self.pong.blue_portal.space[0][1], self.pong.blue_portal.space[1][0], self.pong.blue_portal.space[1][1], fill = "blue")
+        if self.pong.cyan_portal.override == False:
+            self.field.create_rectangle(self.pong.orange_portal.space[0][0], self.pong.orange_portal.space[0][1], self.pong.orange_portal.space[1][0], self.pong.orange_portal.space[1][1], fill="orange")
+        if self.pong.orange_portal.override == False:
+            self.field.create_rectangle(self.pong.cyan_portal.space[0][0], self.pong.cyan_portal.space[0][1], self.pong.cyan_portal.space[1][0], self.pong.cyan_portal.space[1][1], fill = "cyan")
+        if self.pong.blue_portal.override == False:   
+            self.field.create_rectangle(self.pong.red_portal.space[0][0], self.pong.red_portal.space[0][1], self.pong.red_portal.space[1][0], self.pong.red_portal.space[1][1], fill = "red")
+        if self.pong.red_portal.override == False:
+            self.field.create_rectangle(self.pong.blue_portal.space[0][0], self.pong.blue_portal.space[0][1], self.pong.blue_portal.space[1][0], self.pong.blue_portal.space[1][1], fill = "blue")
         self.field.pack()
 
 #Class for creatting the two paddle objects use to interact with the game
@@ -276,6 +280,7 @@ class Ball(object):
     def accelerate(self, gravity):
         adt = (gravity[0]*cos(gravity[1]), gravity[0]*sin(gravity[1]))
         self.velocity = add(self.velocity, adt)
+        self.speed = (self.velocity[0]**2 + self.velocity[1]**2)**0.5
 
     def reset(self):
         """
@@ -304,7 +309,7 @@ class Pong(object):
         """
         self.paddle_left = Paddle(300, 35, "w","s")
         self.paddle_right = Paddle(300, 965, "<Up>","<Down>")
-        self.ball = Ball((500,250), 10, 4)
+        self.ball = Ball((500,250), 10, 3)
         self.randomize_portals()
         self.catcher = None
         self.portal_cooldown = 300
@@ -327,7 +332,7 @@ class Pong(object):
                        lambda: self.ball.position[0] > 995,
                        lambda: self.ball.position[0] < 5,
                        self.hits_portal,
-                       lambda: self.random_cooldown > 5000,
+                       lambda: self.random_cooldown >= 10000,
                        lambda: self.gravity_cooldown >= 10000]
         # Game responses: [bounce back in appropriate direction x4, score ball x2]
         self.responses = [lambda: self.ball.reflect( (0, -1) ),
@@ -353,10 +358,11 @@ class Pong(object):
             return self.ball.position[0] > 950 and self.ball.position[1] <= self.paddle_right.height and self.ball.position[1] >= self.paddle_right.height-100
 
     def hits_portal(self):
-        for i in self.portals:
-            if self.ball.position[0] < self.portals[i].space[1][0] and self.ball.position[0] > self.portals[i].space[0][0] and self.ball.position[1] > (self.portals[i].center[1]-10) and self.ball.position[1] < (self.portals[i].center[1]+10):
-                self.catcher = self.portals[i].color_in
-                return True               
+            for i in self.portals:
+                if self.ball.position[0] < self.portals[i].space[1][0] and self.ball.position[0] > self.portals[i].space[0][0] and self.ball.position[1] > (self.portals[i].center[1]-10) and self.ball.position[1] < (self.portals[i].center[1]+10):
+                    self.catcher = self.portals[i].color_in
+                    if self.catcher != self.lwarp and self.catcher != self.rwarp:
+                        return True               
 
     def change_gravity(self):
         self.gravity = -self.gravity
@@ -381,10 +387,24 @@ class Pong(object):
 
     def randomize_portals(self):
         y_positions = [10,490]
-        self.orange_portal = Portal("orange", "cyan", (random.randrange(100,900), random.choice(y_positions)))
-        self.cyan_portal = Portal("cyan", "orange", (random.randrange(100,900),random.choice(y_positions)))
-        self.red_portal = Portal("red", "blue", (random.randrange(100,900),random.choice(y_positions)))
-        self.blue_portal = Portal("blue", "red", (random.randrange(100,900), random.choice(y_positions)))
+        x_positions = range(100,901)
+        resulting_positions = []
+
+        for portal in range(4):
+            selection = random.choice(x_positions)
+            resulting_positions.append(selection)
+            x_positions.remove(selection)
+
+            for i in range(1,101):
+                if (selection-i) in x_positions:
+                    x_positions.remove(selection-i)
+                if (selection+i) in x_positions:
+                    x_positions.remove(selection+i)
+
+        self.orange_portal = Portal("orange", "cyan", (resulting_positions[0], random.choice(y_positions)))
+        self.cyan_portal = Portal("cyan", "orange", (resulting_positions[1], random.choice(y_positions)))
+        self.red_portal = Portal("red", "blue", (resulting_positions[2], random.choice(y_positions)))
+        self.blue_portal = Portal("blue", "red", (resulting_positions[3], random.choice(y_positions)))
         self.portals = {"orange":self.orange_portal, "cyan":self.cyan_portal, "red":self.red_portal, "blue":self.blue_portal}
         self.random_cooldown = 0
         self.start_check = False
@@ -427,21 +447,22 @@ class Pong(object):
     def warp(self, side):
         if self.portal_cooldown >= 100:
             self.ball.hitTally +=1
-
             if side == "left" and self.lwarp_enable == True: # Combine these at some point
                 if self.portals[self.lwarp].center[1] == 10:
                     theta_added = (3*pi/2)
                 elif self.portals[self.lwarp].center[1] == 490:
                     theta_added = (pi/2)
-                self.ball.position = self.portals[self.lwarp].center
-                theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
+                self.portal_cooldown = 0
+                self.ball.position = self.portals[self.portals[self.lwarp].color_out].center
+                theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])       
                 self.ball.velocity = (self.ball.speed*cos(theta_added+theta_in), (self.ball.speed*sin(theta_added+theta_in)))
             elif side == "right" and self.rwarp_enable == True:
                 if self.portals[self.rwarp].center[1] == 10:
                     theta_added = (3*pi/2)
                 elif self.portals[self.rwarp].center[1] == 490:
                     theta_added = (pi/2)
-                self.ball.position = self.portals[self.rwarp].center
+                self.portal_cooldown = 0
+                self.ball.position = self.portals[self.portals[self.rwarp].color_out].center
                 theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
                 self.ball.velocity = (self.ball.speed*cos(theta_added+theta_in), (self.ball.speed*sin(theta_added+theta_in)))
 
@@ -495,14 +516,7 @@ class Portal(object):
         self.color_in = color_in
         self.color_out = color_out # portal which serves as exit
         self.center = center
-        self.open()
-
-    def open(self):
         self.space = ((self.center[0]-50, self.center[1]+5),(self.center[0]+50, self.center[1]-5))
-
-    def close(self):
-        self.space = ((0,0),(0,0),(0,0),(0,0))
-
 
 
 def dot(x, y):
