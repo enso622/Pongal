@@ -136,10 +136,7 @@ class GUI(tk.Frame):
 
         self.field.create_rectangle(20, self.pong.paddle_left.height, 50, (self.pong.paddle_left.height-100), fill=p1_color)
         self.field.create_rectangle(950, self.pong.paddle_right.height, 980, (self.pong.paddle_right.height-100), fill=p2_color)
-        #Display score
-        ourFont = tkFont.Font(family='Helvetica',size=20)
-        app.field.create_text(250, 35, text=str(score.scoreP1), fill = "dark green", font=ourFont)
-        app.field.create_text(750, 35, text=str(score.scoreP2), fill = "dark green", font=ourFont)
+
         #Create field details
         self.field.create_line(500, 0, 500, 500, fill="dark green", width=3)
         self.field.create_oval(400,150,600,350, outline ="dark green", width=3)
@@ -154,15 +151,6 @@ class GUI(tk.Frame):
         #     for timestamp in [8500, 9000, 9500, 10000, 1000]:
         #         if timestamp > 1000
             # self.field.create_text(500,50,text = str(i), fill="Red", font=ourFont)
-        if self.pong.gravity_cooldown > 8500 and self.pong.gravity_cooldown < 9000:
-            self.field.create_text(500,50,text=str("3..."), fill="yellow", font=ourFont)
-            self.pong.start_check = False
-        if self.pong.gravity_cooldown >= 9000 and self.pong.gravity_cooldown <= 9500:
-            self.field.create_text(500,50,text = str("2..."), fill="yellow", font=ourFont)
-        if self.pong.gravity_cooldown > 9500 and self.pong.gravity_cooldown < 10000:
-            self.field.create_text(500,50,text = str("1..."), fill="yellow", font=ourFont)
-        if self.pong.gravity_cooldown <= 1000 and self.pong.start_check == False:
-            self.field.create_text(500,50,text=str("Reversing Gravity!"), fill="yellow", font=ourFont)
         #Paddle Portals
         if self.pong.cyan_portal.override == False:
             self.field.create_rectangle(self.pong.orange_portal.space[0][0], self.pong.orange_portal.space[0][1], self.pong.orange_portal.space[1][0], self.pong.orange_portal.space[1][1], fill="orange")
@@ -172,6 +160,30 @@ class GUI(tk.Frame):
             self.field.create_rectangle(self.pong.red_portal.space[0][0], self.pong.red_portal.space[0][1], self.pong.red_portal.space[1][0], self.pong.red_portal.space[1][1], fill = "red")
         if self.pong.red_portal.override == False:
             self.field.create_rectangle(self.pong.blue_portal.space[0][0], self.pong.blue_portal.space[0][1], self.pong.blue_portal.space[1][0], self.pong.blue_portal.space[1][1], fill = "blue")
+        
+        self.field.create_rectangle(((self.pong.block1.space[0][0], self.pong.block1.space[0][1]), (self.pong.block1.space[1][0], self.pong.block1.space[1][1])), fill = self.pong.block1.color)
+
+        if self.pong.cloud.exists == True:
+            for i in self.pong.cloud.points:
+                self.field.create_oval(i[0]-random.randrange(30,self.pong.cloud.size), i[1]-random.randrange(30,self.pong.cloud.size), i[0]+random.randrange(30,self.pong.cloud.size), i[1]+random.randrange(30,self.pong.cloud.size), fill = self.pong.cloud.color, outline = self.pong.cloud.color)
+
+        #Display score
+        ourFont = tkFont.Font(family='Helvetica',size=20)
+        app.field.create_text(250, 35, text=str(score.scoreP1), fill = "dark green", font=ourFont)
+        app.field.create_text(750, 35, text=str(score.scoreP2), fill = "dark green", font=ourFont)
+        #Relay information to players
+        if self.pong.gravity_cooldown > 8500 and self.pong.gravity_cooldown < 9000:
+            self.field.create_text(500,50,text=str("3..."), fill="yellow", font=ourFont)
+            self.pong.start_check = False
+        if self.pong.gravity_cooldown >= 9000 and self.pong.gravity_cooldown <= 9500:
+            self.field.create_text(500,50,text = str("2..."), fill="yellow", font=ourFont)
+        if self.pong.gravity_cooldown > 9500 and self.pong.gravity_cooldown < 10000:
+            self.field.create_text(500,50,text = str("1..."), fill="yellow", font=ourFont)
+        if self.pong.gravity_cooldown <= 1000 and self.pong.start_check == False:
+            self.field.create_text(500,50,text=str("Reversing Gravity!"), fill="yellow", font=ourFont)
+
+        if self.pong.cloud.exists == True and self.pong.cloud_cooldown <= 1000:
+            self.field.create_text(500, 85, text = str("Chaos Time!"), fill = "yellow", font = ourFont)
         self.field.pack()
 
 #Class for creatting the two paddle objects use to interact with the game
@@ -282,6 +294,14 @@ class Ball(object):
         self.velocity = add(self.velocity, adt)
         self.speed = (self.velocity[0]**2 + self.velocity[1]**2)**0.5
 
+    def randomize_direction(self):
+        polar_options = range(0, 13) + range(37, 63) + range(87,100)
+        scalar = float(random.choice(polar_options))/100.
+        angle = scalar*2*pi
+        vx = self.speed*cos(angle)
+        vy = self.speed*sin(angle)
+        self.velocity = (vx, vy)
+
     def reset(self):
         """
         Handle game reset in case of goal or New Game button. Update scores and reset ball and paddle parameters.
@@ -290,12 +310,8 @@ class Ball(object):
         self.position = self.initPosition
         self.speed = self.initSpeed
 
-        polar_options = range(0, 13) + range(37, 63) + range(87,100)
-        scalar = float(random.choice(polar_options))/100.
-        angle = scalar*2*pi
-        vx = self.speed*cos(angle)
-        vy = self.speed*sin(angle)  
-        self.velocity = (vx, vy)
+        self.randomize_direction()
+        
         self.hitTally = 0
         self.player = 0
 
@@ -309,12 +325,17 @@ class Pong(object):
         """
         self.paddle_left = Paddle(300, 35, "w","s")
         self.paddle_right = Paddle(300, 965, "<Up>","<Down>")
+        self.block1 = Block((0,0), 0, "purple")
+        self.cloud = Cloud((0,0), 0, "white")
         self.ball = Ball((500,250), 10, 3)
         self.randomize_portals()
         self.catcher = None
         self.portal_cooldown = 300
         self.random_cooldown = 0
         self.gravity_cooldown = 0
+        self.block_cooldown = 0
+        self.cloud_cooldown = 0
+        self.chaos_cooldown = 0
         self.gravity = 0.1
         self.start_check = True
         self.lwarp_enable = False
@@ -333,7 +354,12 @@ class Pong(object):
                        lambda: self.ball.position[0] < 5,
                        self.hits_portal,
                        lambda: self.random_cooldown >= 10000,
-                       lambda: self.gravity_cooldown >= 10000]
+                       lambda: self.gravity_cooldown >= 10000,
+                       lambda: self.block_cooldown >= 3000,
+                       self.hits_block,
+                       lambda: self.cloud_cooldown >= 12000,
+                       self.enters_cloud,
+                       lambda: self.cloud_cooldown >= 3000]
         # Game responses: [bounce back in appropriate direction x4, score ball x2]
         self.responses = [lambda: self.ball.reflect( (0, -1) ),
                           lambda: self.ball.reflect( (0,  1) ),
@@ -345,7 +371,12 @@ class Pong(object):
                           lambda: self.ball.strike(2),
                           self.teleport,
                           self.randomize_portals,
-                          self.change_gravity]
+                          self.change_gravity,
+                          self.generate_blocks,
+                          self.block_bounce,
+                          self.generate_cloud,
+                          self.unleash_chaos,
+                          self.cloud.destroy,]
 
     # Pong event for ball collision with left paddle
     def hits_left_paddle(self):
@@ -466,6 +497,34 @@ class Pong(object):
                 theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
                 self.ball.velocity = (self.ball.speed*cos(theta_added+theta_in), (self.ball.speed*sin(theta_added+theta_in)))
 
+    def generate_blocks(self):
+        if self.block1.exists == False:
+            self.block1.generate(30)
+            self.block1.exists = True
+            self.block_cooldown = 0
+
+    def hits_block(self):
+        return self.ball.position[0] > self.block1.space[0][0] and self.ball.position[0] < self.block1.space[1][0] and self.ball.position[1] < self.block1.space[1][1] and self.ball.position[1] > self.block1.space[0][1]
+
+    def block_bounce(self):
+        edge = self.block1.breakout(self.ball.position[0], self.ball.position[1])
+        self.ball.reflect(edge)
+        self.block_cooldown = 0
+
+    def generate_cloud(self):
+        self.cloud.exists = True
+        self.cloud.generate(75)
+        self.cloud.generate_points()
+        self.cloud_cooldown = 0
+
+    def enters_cloud(self):
+        return self.ball.position[0] > self.cloud.space[0][0] and self.ball.position[0] < self.cloud.space[1][0] and self.ball.position[1] < self.cloud.space[1][1] and self.ball.position[1] > self.cloud.space[0][1]
+
+    def unleash_chaos(self):
+        if self.chaos_cooldown >= 100:
+            self.ball.randomize_direction()
+            self.chaos_cooldown = 0
+
     def step(self):
         """
         Calculate the next game state.
@@ -477,6 +536,9 @@ class Pong(object):
         self.portal_cooldown += 5
         self.random_cooldown += 5
         self.gravity_cooldown += 5
+        self.block_cooldown += 5
+        self.cloud_cooldown += 5
+        self.chaos_cooldown += 5
 
         #for testing purposes - delete
         #self.ball.velocity = (cos(pi/4), sin(-pi/4))
@@ -518,6 +580,51 @@ class Portal(object):
         self.center = center
         self.space = ((self.center[0]-50, self.center[1]+5),(self.center[0]+50, self.center[1]-5))
 
+class Obstacle(object):
+    def __init__(self, coordinates, dimension, color):
+        self.center = coordinates
+        self.color = color
+        self.size = dimension
+        self.update_space()
+        self.exists = False
+
+    def update_space(self):
+        self.space = (((self.center[0] - self.size), (self.center[1] - self.size)), ((self.center[0] + self.size), (self.center[1] + self.size)))
+
+    def generate(self, dimension):
+        self.center = (random.randrange(100,900),random.randrange(100,400))
+        self.size = dimension
+        self.update_space()
+
+    def destroy(self):
+        self.center = (0,0)
+        self.size = 0
+        self.update_space()
+        self.exists = False
+
+class Block(Obstacle):
+    def breakout(self, ball_x, ball_y):
+        x_contact = abs(ball_x - self.center[0])
+        y_contact = abs(ball_y - self.center[1])
+        theta_contact = arctan(y_contact / x_contact)
+        self.destroy()
+        self.exists = False
+        if theta_contact > 0.7854:
+            return (0 , 1)
+        else:
+            return (1 , 0)
+
+class Cloud(Obstacle):
+    def generate_points(self):
+        self.points = []
+        low_x = self.center[0] - self.size
+        high_x = self.center[0] + self.size
+        low_y = self.center[1] - self.size
+        high_y = self.center[1] + self.size
+        for i in range(20):
+            random_x = random.randrange(low_x, high_x)
+            random_y = random.randrange(low_y, high_y)
+            self.points.append((random_x, random_y))
 
 def dot(x, y):
     """
