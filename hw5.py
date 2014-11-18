@@ -294,8 +294,7 @@ class Ball(object):
         self.velocity = add(self.velocity, adt)
         self.speed = (self.velocity[0]**2 + self.velocity[1]**2)**0.5
 
-    def randomize_direction(self):
-        polar_options = range(0, 13) + range(37, 63) + range(87,100)
+    def randomize_direction(self, polar_options):
         scalar = float(random.choice(polar_options))/100.
         angle = scalar*2*pi
         vx = self.speed*cos(angle)
@@ -309,8 +308,9 @@ class Ball(object):
         score.update(self.player)
         self.position = self.initPosition
         self.speed = self.initSpeed
+        polar_range = range(0, 13) + range(37, 63) + range(87,100)
 
-        self.randomize_direction()
+        self.randomize_direction(polar_range)
         
         self.hitTally = 0
         self.player = 0
@@ -522,7 +522,7 @@ class Pong(object):
 
     def unleash_chaos(self):
         if self.chaos_cooldown >= 100:
-            self.ball.randomize_direction()
+            self.ball.randomize_direction(range(100))
             self.chaos_cooldown = 0
 
     def step(self):
