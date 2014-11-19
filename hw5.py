@@ -97,6 +97,9 @@ class GUI(tk.Frame):
 
         self.field = tk.Canvas(master, width=1000, height=500, bg = "black")
 
+        self.cube_img = tk.PhotoImage(file="comp_cube.gif")
+        self.cube_img = self.cube_img.subsample(4,4)
+
     # keybindings to control the positioning of the paddles
     def bindKeys(self, master):
         master.bind("w", self.pong.paddle_left.lift)
@@ -161,7 +164,9 @@ class GUI(tk.Frame):
         if self.pong.red_portal.override == False:
             self.field.create_rectangle(self.pong.blue_portal.space[0][0], self.pong.blue_portal.space[0][1], self.pong.blue_portal.space[1][0], self.pong.blue_portal.space[1][1], fill = "blue")
         
-        self.field.create_rectangle(((self.pong.block1.space[0][0], self.pong.block1.space[0][1]), (self.pong.block1.space[1][0], self.pong.block1.space[1][1])), fill = self.pong.block1.color)
+        #self.field.create_rectangle(((self.pong.block1.space[0][0], self.pong.block1.space[0][1]), (self.pong.block1.space[1][0], self.pong.block1.space[1][1])), fill = self.pong.block1.color)
+        
+        self.field.create_image(self.pong.block1.center[0],self.pong.block1.center[1], image = self.cube_img, state = self.pong.block1.state)
 
         if self.pong.cloud.exists == True:
             for i in self.pong.cloud.points:
@@ -183,7 +188,7 @@ class GUI(tk.Frame):
             self.field.create_text(500,50,text=str("Reversing Gravity!"), fill="yellow", font=ourFont)
 
         if self.pong.cloud.exists == True and self.pong.cloud_cooldown <= 1000:
-            self.field.create_text(500, 85, text = str("Chaos Time!"), fill = "yellow", font = ourFont)
+            self.field.create_text(500, 85, text = str("Chaos Cloud Detected!"), fill = "yellow", font = ourFont)
         self.field.pack()
 
 #Class for creatting the two paddle objects use to interact with the game
@@ -499,7 +504,7 @@ class Pong(object):
 
     def generate_blocks(self):
         if self.block1.exists == False:
-            self.block1.generate(30)
+            self.block1.generate(35)
             self.block1.exists = True
             self.block_cooldown = 0
 
@@ -587,6 +592,7 @@ class Obstacle(object):
         self.size = dimension
         self.update_space()
         self.exists = False
+        self.state = "hidden"
 
     def update_space(self):
         self.space = (((self.center[0] - self.size), (self.center[1] - self.size)), ((self.center[0] + self.size), (self.center[1] + self.size)))
@@ -595,12 +601,14 @@ class Obstacle(object):
         self.center = (random.randrange(100,900),random.randrange(100,400))
         self.size = dimension
         self.update_space()
+        self.state = "normal"
 
     def destroy(self):
         self.center = (0,0)
         self.size = 0
         self.update_space()
         self.exists = False
+        self.state = "hidden"
 
 class Block(Obstacle):
     def breakout(self, ball_x, ball_y):
