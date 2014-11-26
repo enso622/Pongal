@@ -1,9 +1,17 @@
-Component files (Remember to rename)
+Component Files to include:
 
-(https://bitbucket.org/repo/Kz9jKg/images/1901943160-background.gif)
+https://www.dropbox.com/s/sx5cdyxs9ddr67g/HW5.zip?dl=0
 
-(https://bitbucket.org/repo/Kz9jKg/images/552867702-caution2.gif)
+Controls:
 
-(https://bitbucket.org/repo/Kz9jKg/images/1762645420-comp_cube.gif)
+W and S - move left player's paddle up and down
 
-(https://bitbucket.org/repo/Kz9jKg/images/3591120471-space_core.gif)
+A and D - control left player's portals (orange and cyan)
+
+Up and Down - move right player's paddle up and down
+
+Left and Right - control right player's portals (red and blue)
+
+Any other key to start initial game.
+
+[Known Error]: Must currently avoid pressing both portal keys simultaneously, as the portal state resulting when one key is released is not always as desired. Before activating one portal key, release the other.
