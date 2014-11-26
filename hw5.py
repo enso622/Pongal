@@ -77,6 +77,9 @@ from numpy import sin, pi, cos, arctan
 import random
 import tkFont
 import math
+import time
+import thread
+import winsound
 
 class GUI(tk.Frame):
 
@@ -89,6 +92,9 @@ class GUI(tk.Frame):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
+        self.ourFont = tkFont.Font(family='fixedsys',size=20)
+        self.ourFont2 = tkFont.Font(family='fixedsys',size=50)
+
         self.pong = Pong()
 
         self.bindKeys(master)
@@ -96,9 +102,7 @@ class GUI(tk.Frame):
         self.pack()
 
         self.field = tk.Canvas(master, width=1000, height=500, bg = "black")
-
-        self.cube_img = tk.PhotoImage(file="comp_cube.gif")
-        self.cube_img = self.cube_img.subsample(4,4)
+        self.importGraphics()
 
     # keybindings to control the positioning of the paddles
     def bindKeys(self, master):
@@ -118,15 +122,36 @@ class GUI(tk.Frame):
         master.bind("<Right>", lambda event: self.pong.enable_right_warp(1))
         master.bind("<KeyRelease-Left>", self.pong.disable_right_warp)
         master.bind("<KeyRelease-Right>", self.pong.disable_right_warp)
+        master.bind("<Key>", self.pong.begin_game)
 
     # creates buttons to exit the game or reset the field conditions
     def createWidgets(self):
-        self.quit = tk.Button(self, text="Quit", command=self.quit).grid(column=1,row=0)
-        self.play = tk.Button(self, text="New Game", command=self.pong.ball.reset).grid(column=0,row=0)
+        self.quit = tk.Button(self, text="Quit", command=self.quit, font = self.ourFont).grid(column=1,row=0)
+        self.restart = tk.Button(self, text="New Game", command=self.pong.new_game, font = self.ourFont).grid(column=0,row=0, padx=335, sticky="E")
 
     # draw the updated boundaries of all relevant game elements (paddles, ball, etc) on the canvas game field
+    def importGraphics(self):
+        self.cube_img = tk.PhotoImage(file="comp_cube.gif")
+        self.cube_img = self.cube_img.subsample(4,4)
+        self.ball_img = tk.PhotoImage(file="space_core.gif")
+        self.ball_img = self.ball_img.subsample(30,30)
+        self.paddle_img = tk.PhotoImage(file="caution2.gif")
+        self.paddle_img = self.paddle_img.subsample(4,4)
+        self.bg_img = tk.PhotoImage(file="background.gif")
+        self.creature_img = tk.PhotoImage(file="currupt_cube.gif")
+        self.creature_img = self.creature_img.subsample(4,4)
+        #self.life_img = tk.PhotoImage(file="heart.gif")
+        #self.life_img = self.life_img.subsample(4,4)     
+
     def draw(self):
         app.field.delete("all")
+
+        self.field.create_image(500,250,image=self.bg_img)
+
+        if self.pong.restart_delay < 1000 and self.pong.begin == True:
+            timer_angle = -359*(self.pong.restart_delay/1000.)
+            self.field.create_arc(451,86,551,186, start = 90, extent = timer_angle, outline = "purple", style = "arc", width = 10)
+        
         #Create paddles
         if self.pong.lwarp_enable == True:
             p1_color = self.pong.lwarp
@@ -137,18 +162,30 @@ class GUI(tk.Frame):
         else:
             p2_color = "green"
 
-        self.field.create_rectangle(20, self.pong.paddle_left.height, 50, (self.pong.paddle_left.height-100), fill=p1_color)
-        self.field.create_rectangle(950, self.pong.paddle_right.height, 980, (self.pong.paddle_right.height-100), fill=p2_color)
+        self.field.create_rectangle(20, self.pong.paddle_left.height+10, 50, (self.pong.paddle_left.height-110), fill=p1_color)
+        self.field.create_rectangle(950, self.pong.paddle_right.height+10, 980, (self.pong.paddle_right.height-110), fill=p2_color)
+
+        # New paddle code (old above to be erased)
+        self.field.create_image(self.pong.paddle_left.center, image = self.paddle_img)
+        self.field.create_image(self.pong.paddle_right.center, image = self.paddle_img)
+        if self.pong.lwarp_enable == True:
+            self.field.create_oval(37, (self.pong.paddle_left.height+10), 52, (self.pong.paddle_left.height-110), fill = p1_color)
+            self.field.create_oval(40, (self.pong.paddle_left.height-5), 49, (self.pong.paddle_left.height-95), fill = "gray11")
+        if self.pong.rwarp_enable == True:
+            self.field.create_oval(948, (self.pong.paddle_right.height+10), 963, (self.pong.paddle_right.height-110), fill=p2_color)     
+            self.field.create_oval(951, (self.pong.paddle_right.height-5), 960, (self.pong.paddle_right.height-95), fill="gray11")
+        # end paddle code
 
         #Create field details
-        self.field.create_line(500, 0, 500, 500, fill="dark green", width=3)
-        self.field.create_oval(400,150,600,350, outline ="dark green", width=3)
+        #self.field.create_line(500, 0, 500, 500, fill="dark green", width=3)
+        #self.field.create_oval(400,150,600,350, outline ="dark green", width=3)
         #Create ball
         self.field.create_oval(self.pong.ball.position[0]-self.pong.ball.size, 
             self.pong.ball.position[1]-self.pong.ball.size, 
             self.pong.ball.position[0]+self.pong.ball.size, 
             self.pong.ball.position[1]+self.pong.ball.size,
             fill="green")
+
         #Indicating gravity change, simplification in progress
         # for notification in ["3...  ", "2...  ", "1...  ", "Reversing Gravity! "]:
         #     for timestamp in [8500, 9000, 9500, 10000, 1000]:
@@ -156,39 +193,48 @@ class GUI(tk.Frame):
             # self.field.create_text(500,50,text = str(i), fill="Red", font=ourFont)
         #Paddle Portals
         if self.pong.cyan_portal.override == False:
-            self.field.create_rectangle(self.pong.orange_portal.space[0][0], self.pong.orange_portal.space[0][1], self.pong.orange_portal.space[1][0], self.pong.orange_portal.space[1][1], fill="orange")
+            self.field.create_oval(self.pong.orange_portal.space[0][0]-13,self.pong.orange_portal.space[0][1]-13,self.pong.orange_portal.space[1][0]+13,self.pong.orange_portal.space[1][1]+13, fill = self.pong.orange_portal.color_in)
+            self.field.create_oval(self.pong.orange_portal.space[0][0], self.pong.orange_portal.space[0][1], self.pong.orange_portal.space[1][0], self.pong.orange_portal.space[1][1], fill=self.pong.orange_portal.fill_color)
         if self.pong.orange_portal.override == False:
-            self.field.create_rectangle(self.pong.cyan_portal.space[0][0], self.pong.cyan_portal.space[0][1], self.pong.cyan_portal.space[1][0], self.pong.cyan_portal.space[1][1], fill = "cyan")
+            self.field.create_oval(self.pong.cyan_portal.space[0][0]-13,self.pong.cyan_portal.space[0][1]-13,self.pong.cyan_portal.space[1][0]+13,self.pong.cyan_portal.space[1][1]+13, fill = self.pong.cyan_portal.color_in)
+            self.field.create_oval(self.pong.cyan_portal.space[0][0], self.pong.cyan_portal.space[0][1], self.pong.cyan_portal.space[1][0], self.pong.cyan_portal.space[1][1], fill = self.pong.cyan_portal.fill_color)
         if self.pong.blue_portal.override == False:   
-            self.field.create_rectangle(self.pong.red_portal.space[0][0], self.pong.red_portal.space[0][1], self.pong.red_portal.space[1][0], self.pong.red_portal.space[1][1], fill = "red")
+            self.field.create_oval(self.pong.red_portal.space[0][0]-13,self.pong.red_portal.space[0][1]-13,self.pong.red_portal.space[1][0]+13,self.pong.red_portal.space[1][1]+13, fill = self.pong.red_portal.color_in)
+            self.field.create_oval(self.pong.red_portal.space[0][0], self.pong.red_portal.space[0][1], self.pong.red_portal.space[1][0], self.pong.red_portal.space[1][1], fill = self.pong.red_portal.fill_color)
         if self.pong.red_portal.override == False:
-            self.field.create_rectangle(self.pong.blue_portal.space[0][0], self.pong.blue_portal.space[0][1], self.pong.blue_portal.space[1][0], self.pong.blue_portal.space[1][1], fill = "blue")
+            self.field.create_oval(self.pong.blue_portal.space[0][0]-13,self.pong.blue_portal.space[0][1]-13,self.pong.blue_portal.space[1][0]+13,self.pong.blue_portal.space[1][1]+13, fill = self.pong.blue_portal.color_in)
+            self.field.create_oval(self.pong.blue_portal.space[0][0], self.pong.blue_portal.space[0][1], self.pong.blue_portal.space[1][0], self.pong.blue_portal.space[1][1], fill = self.pong.blue_portal.fill_color)
         
         #self.field.create_rectangle(((self.pong.block1.space[0][0], self.pong.block1.space[0][1]), (self.pong.block1.space[1][0], self.pong.block1.space[1][1])), fill = self.pong.block1.color)
         
         self.field.create_image(self.pong.block1.center[0],self.pong.block1.center[1], image = self.cube_img, state = self.pong.block1.state)
-
-        if self.pong.cloud.exists == True:
-            for i in self.pong.cloud.points:
-                self.field.create_oval(i[0]-random.randrange(30,self.pong.cloud.size), i[1]-random.randrange(30,self.pong.cloud.size), i[0]+random.randrange(30,self.pong.cloud.size), i[1]+random.randrange(30,self.pong.cloud.size), fill = self.pong.cloud.color, outline = self.pong.cloud.color)
+        self.field.create_image(self.pong.creature.center[0],self.pong.creature.center[1], image = self.creature_img, state = self.pong.creature.state)        
 
         #Display score
-        ourFont = tkFont.Font(family='Helvetica',size=20)
-        app.field.create_text(250, 35, text=str(score.scoreP1), fill = "dark green", font=ourFont)
-        app.field.create_text(750, 35, text=str(score.scoreP2), fill = "dark green", font=ourFont)
+        app.field.create_text(275, 38, text=str(score.scoreP1), fill = "dark green", font=self.ourFont)
+        app.field.create_text(725, 38, text=str(score.scoreP2), fill = "dark green", font=self.ourFont)
         #Relay information to players
-        if self.pong.gravity_cooldown > 8500 and self.pong.gravity_cooldown < 9000:
-            self.field.create_text(500,50,text=str("3..."), fill="yellow", font=ourFont)
+        if self.pong.gravity_cooldown > 4500 and self.pong.gravity_cooldown < 5000:
+            self.field.create_text(500,135,text=str("3"), fill="yellow", font=self.ourFont2)
             self.pong.start_check = False
-        if self.pong.gravity_cooldown >= 9000 and self.pong.gravity_cooldown <= 9500:
-            self.field.create_text(500,50,text = str("2..."), fill="yellow", font=ourFont)
-        if self.pong.gravity_cooldown > 9500 and self.pong.gravity_cooldown < 10000:
-            self.field.create_text(500,50,text = str("1..."), fill="yellow", font=ourFont)
+        if self.pong.gravity_cooldown >= 5000 and self.pong.gravity_cooldown <= 5500:
+            self.field.create_text(500,135,text = str("2"), fill="yellow", font=self.ourFont2)
+        if self.pong.gravity_cooldown > 5500 and self.pong.gravity_cooldown < 6000:
+            self.field.create_text(500,135,text = str("1"), fill="yellow", font=self.ourFont2)
         if self.pong.gravity_cooldown <= 1000 and self.pong.start_check == False:
-            self.field.create_text(500,50,text=str("Reversing Gravity!"), fill="yellow", font=ourFont)
+            self.field.create_text(500,135,text=str("Reversing Gravity!"), fill="yellow", font=self.ourFont)
+        
+        if self.pong.begin == False and self.pong.blink_time < 250:
+            self.field.create_text(500,350,text=str("<Press any key to begin Testing>"), fill="yellow", font = self.ourFont)
 
+        self.field.create_image(self.pong.ball.position[0], self.pong.ball.position[1], image = self.ball_img)
+        
+        if self.pong.cloud.exists == True:
+            for i in self.pong.cloud.points:
+                self.field.create_oval(i[0]-random.randrange(30,self.pong.cloud.size), i[1]-random.randrange(30,self.pong.cloud.size), i[0]+random.randrange(30,self.pong.cloud.size), i[1]+random.randrange(30,self.pong.cloud.size), fill = "#476042", outline = "dark green")
         if self.pong.cloud.exists == True and self.pong.cloud_cooldown <= 1000:
-            self.field.create_text(500, 85, text = str("Chaos Cloud Detected!"), fill = "yellow", font = ourFont)
+            self.field.create_text(500, 75, text = str("It's your old friend: Deadly Neurotoxin!"), fill = "yellow", font = self.ourFont)
+
         self.field.pack()
 
 #Class for creatting the two paddle objects use to interact with the game
@@ -197,7 +243,8 @@ class Paddle(object):
         """
         Create a pong paddle with the given position and keybindings
         """
-        self.height = height
+        self.initHeight = height
+        self.height = self.initHeight
         self.x = x_location
         self.center = (self.x, (self.height - 50))
         self.KeyUp = upbutton
@@ -230,15 +277,19 @@ class Paddle(object):
         self.move_up = False
         self.move_down = False
 
+    def reset(self):
+        self.height = self.initHeight
+        self.center = (self.x, (self.height - 50))
+
     def operate(self):
         """
         Runs all immediate paddle conditions.
         """
         if self.move_up == True and self.height >= 100:
-            self.height -= 10
+            self.height -= 12
 
         if self.move_down == True and self.height <= 500:
-            self.height += 10
+            self.height += 12
 
         self.center = (self.x, self.height-50)
         
@@ -257,6 +308,7 @@ class Ball(object):
         self.player = 0 # For score/new game reset
 
         self.reset()
+        self.reset_mode = False
 
     def reflect(self, surface):
         """
@@ -320,6 +372,7 @@ class Ball(object):
         self.hitTally = 0
         self.player = 0
 
+        self.reset_mode = True
 
 #Class that controls the interaction between game and field elements
 class Pong(object):
@@ -328,123 +381,142 @@ class Pong(object):
         Create a pong game. Create standard pong objects, events, and
         responses.
         """
+        self.game_time = 0
+        self.restart_delay = 0
+        self.blink_time = 0
+        self.begin = False
         self.paddle_left = Paddle(300, 35, "w","s")
         self.paddle_right = Paddle(300, 965, "<Up>","<Down>")
         self.block1 = Block((0,0), 0, "purple")
-        self.cloud = Cloud((0,0), 0, "white")
-        self.ball = Ball((500,250), 10, 3)
-        self.randomize_portals()
-        self.catcher = None
-        self.portal_cooldown = 300
-        self.random_cooldown = 0
-        self.gravity_cooldown = 0
-        self.block_cooldown = 0
-        self.cloud_cooldown = 0
-        self.chaos_cooldown = 0
-        self.gravity = 0.1
-        self.start_check = True
-        self.lwarp_enable = False
-        self.rwarp_enable = False
-        self.lwarp = None
-        self.rwarp = None
+        self.creature = Creature((0,0),0,"yellow",0.1)
+        self.cloud = Cloud((0,0), 0, "dark green")
+        self.ball = Ball((500,135), 10, 3)
+        self.reset_game(None)
 
         # Game events: Ball hits [upper wall, lower wall, left paddle, right paddle, left wall, right wall]
-        self.events = [lambda: self.ball.position[1] > 10,
-                       lambda: self.ball.position[1] < 490,
-                       self.hits_left_paddle,
-                       self.hits_right_paddle, # preliminary check for paddle warp
-                       self.hits_left_paddle,
-                       self.hits_right_paddle,
-                       lambda: self.ball.position[0] > 995,
-                       lambda: self.ball.position[0] < 5,
-                       self.hits_portal,
-                       lambda: self.random_cooldown >= 10000,
-                       lambda: self.gravity_cooldown >= 10000,
-                       lambda: self.block_cooldown >= 3000,
-                       self.hits_block,
-                       lambda: self.cloud_cooldown >= 12000,
-                       self.enters_cloud,
-                       lambda: self.cloud_cooldown >= 3000]
-        # Game responses: [bounce back in appropriate direction x4, score ball x2]
-        self.responses = [lambda: self.ball.reflect( (0, -1) ),
-                          lambda: self.ball.reflect( (0,  1) ),
-                          lambda: self.warp("left"),
-                          lambda: self.warp("right"),
-                          lambda: self.ball.hitPaddle( (1,  0) ),
-                          lambda: self.ball.hitPaddle( (-1, 0) ),
-                          lambda: self.ball.strike(1),
-                          lambda: self.ball.strike(2),
-                          self.teleport,
-                          self.randomize_portals,
-                          self.change_gravity,
-                          self.generate_blocks,
-                          self.block_bounce,
-                          self.generate_cloud,
-                          self.unleash_chaos,
-                          self.cloud.destroy,]
+        self.events = [lambda: self.ball.position[1] < 10 and self.ball.velocity[1] < 0,
+                        lambda: self.ball.position[1] > 490 and self.ball.velocity[1] > 0,
+                        self.hits_left_paddle,                  #Hit paddle: portal check
+                        self.hits_right_paddle,                 #Hit paddle: portal check
+                        self.hits_left_paddle,                  #Hits paddle: normal
+                        self.hits_right_paddle,                 #Hits paddle: normal
+                        lambda: self.ball.position[0] > 995,    #Score on right edge
+                        lambda: self.ball.position[0] < 5,      #Score on left edge
+                        self.hits_portal,                       #Hits portal
+                        lambda: self.portal_cooldown >= 6000,   #Time: Randomize portal
+                        lambda: self.gravity_cooldown >= 6000,  #Time: Randomize gravity
+                        lambda: self.block_cooldown >= 3000,    #Time: Randomize block
+                        self.hits_block,                        #Hits block
+                        lambda: self.creature_cooldown >= 1000, #Time: Randomize creature
+                        lambda: self.creature.center[1] < 10 and self.creature.velocity[1] < 0,
+                        lambda: self.creature.center[1] > 490 and self.creature.velocity[1] > 0,
+                        self.hits_creature,                     #Hits creature
+                        lambda: self.cloud_cooldown >= 9000,    #Time: Randomize cloud
+                        self.enters_cloud,                      #Hits cloud
+                        lambda: self.cloud_cooldown >= 3000,    #Time: Kill cloud
+                        lambda: self.game_over == True]
+                        #TODO: ball_left..right..etc; crea_left..right..etc
 
-    # Pong event for ball collision with left paddle
+        # Game responses: [bounce back in appropriate direction x4, score ball x2]
+        self.responses = [lambda: self.ball.reflect((0,-1)),
+                        lambda: self.ball.reflect((0,1)),
+                        lambda: self.warp("left"),              #Hit paddle: portal
+                        lambda: self.warp("right"),             #Hit paddle: portal
+                        lambda: self.ball.hitPaddle((1,0)),     #Hits paddle: normal
+                        lambda: self.ball.hitPaddle((-1,0)),    #Hits paddle: normal
+                        lambda: self.reset_game(1),             #Score on right edge
+                        lambda: self.reset_game(2),             #Score on left edge
+                        self.teleport,                          #Hits portal
+                        self.randomize_portals,                 #Time: Randomize portal
+                        self.change_gravity,                    #Time: Randomize gravity
+                        self.generate_blocks,                   #Time: Randomize block
+                        self.block_bounce,                      #Hits block
+                        self.generate_creature,                 #Time: Randomize creature
+                        lambda: self.creature.reflect((0,-1)),
+                        lambda: self.creature.reflect((0,1)),
+                        self.creature_bounce,                   #Hits creature
+                        self.generate_cloud,                    #Time: Randomize cloud
+                        self.unleash_chaos,                     #Hits cloud
+                        self.cloud.destroy,                     #Time: Kill cloud
+                        lambda:self.reset_game(0)]
+                        #TODO: ball_left..right..etc; crea_left..right..etc
+
+#Game run methods
+    def begin_game(self, event):
+        if self.begin == False:
+            self.begin = True
+            self.restart_delay = 0
+
+    def new_game(self):
+
+        self.game_over = True
+
+    def step(self):
+        """
+        Calculate the next game state.
+        """
+        if self.ball.reset_mode == True:
+            self.restart_delay = 0
+            self.ball.reset_mode = False
+
+        self.paddle_right.operate()
+        self.paddle_left.operate()
+        if self.begin == True and self.restart_delay > 1000:
+            self.ball.accelerate((self.gravity,(pi/2)))
+            self.ball.move()
+            self.portal_cooldown += 5
+            self.portal_cooldown += 5
+            self.gravity_cooldown += 5
+            self.block_cooldown += 5
+            self.creature_cooldown +=5
+            self.creature.move()
+            self.cloud_cooldown += 5
+            self.chaos_cooldown += 5
+
+        if self.restart_delay <= 1000:
+            self.restart_delay += 5
+
+        # Check for events
+        self.blink_time+= 5
+        if self.blink_time >= 500:
+            self.blink_time = 0
+
+        else:
+            for event, response in zip(self.events, self.responses):
+                if event():
+                    response()
+                    app.draw() 
+        # Run pong game with time step size of 0.005 seconds
+        root.after(5, self.step)
+        self.game_time += 5
+
+#Events
     def hits_left_paddle(self):
         if self.ball.velocity[0]<0:
-            return self.ball.position[0] < 50 and self.ball.position[1] <= self.paddle_left.height and self.ball.position[1] >= self.paddle_left.height-100
-        
-    # Pong event for ball collision with right paddle
+            return self.ball.position[0] < 50 and self.ball.position[1] <= self.paddle_left.height+10 and self.ball.position[1] >= self.paddle_left.height-110
+
     def hits_right_paddle(self):
         if self.ball.velocity[0]>0:
-            return self.ball.position[0] > 950 and self.ball.position[1] <= self.paddle_right.height and self.ball.position[1] >= self.paddle_right.height-100
+            return self.ball.position[0] > 950 and self.ball.position[1] <= self.paddle_right.height+10 and self.ball.position[1] >= self.paddle_right.height-110
 
     def hits_portal(self):
             for i in self.portals:
                 if self.ball.position[0] < self.portals[i].space[1][0] and self.ball.position[0] > self.portals[i].space[0][0] and self.ball.position[1] > (self.portals[i].center[1]-10) and self.ball.position[1] < (self.portals[i].center[1]+10):
                     self.catcher = self.portals[i].color_in
                     if self.catcher != self.lwarp and self.catcher != self.rwarp:
-                        return True               
+                        return True   
+    
+    def hits_block(self):
 
-    def change_gravity(self):
-        self.gravity = -self.gravity
-        self.gravity_cooldown = 0
-        
-    def teleport(self):
-        if self.portal_cooldown >= 100:
-            if self.portals[self.catcher].override == True:
-                theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
-                if self.catcher == "cyan" or self.catcher == "orange":
-                    self.ball.position = self.paddle_left.center
-                    theta_out = sign(theta_in)*((pi/2)-abs(theta_in))
-                elif self.catcher == "red" or self.catcher == "blue":
-                    self.ball.position = self.paddle_right.center
-                    theta_out = sign(theta_in)*((pi/2)-abs(theta_in))+pi
-                self.ball.velocity = (self.ball.speed*cos(theta_out), (self.ball.speed*sin(-theta_out)))
-            else:
-                self.ball.position = self.portals[self.portals[self.catcher].color_out].center
-                if self.portals[self.catcher].center[1] == self.portals[self.portals[self.catcher].color_out].center[1]:
-                    self.ball.velocity = (-self.ball.velocity[0], -self.ball.velocity[1])
-            self.portal_cooldown = 0
+        return self.ball.position[0] > self.block1.space[0][0] and self.ball.position[0] < self.block1.space[1][0] and self.ball.position[1] < self.block1.space[1][1] and self.ball.position[1] > self.block1.space[0][1]
 
-    def randomize_portals(self):
-        y_positions = [10,490]
-        x_positions = range(100,901)
-        resulting_positions = []
+    def hits_creature(self):
+        return self.ball.position[0] > self.creature.space[0][0] and self.ball.position[0] < self.creature.space[1][0] and self.ball.position[1] < self.creature.space[1][1] and self.ball.position[1] > self.creature.space[0][1]
 
-        for portal in range(4):
-            selection = random.choice(x_positions)
-            resulting_positions.append(selection)
-            x_positions.remove(selection)
+    def enters_cloud(self):
 
-            for i in range(1,101):
-                if (selection-i) in x_positions:
-                    x_positions.remove(selection-i)
-                if (selection+i) in x_positions:
-                    x_positions.remove(selection+i)
-
-        self.orange_portal = Portal("orange", "cyan", (resulting_positions[0], random.choice(y_positions)))
-        self.cyan_portal = Portal("cyan", "orange", (resulting_positions[1], random.choice(y_positions)))
-        self.red_portal = Portal("red", "blue", (resulting_positions[2], random.choice(y_positions)))
-        self.blue_portal = Portal("blue", "red", (resulting_positions[3], random.choice(y_positions)))
-        self.portals = {"orange":self.orange_portal, "cyan":self.cyan_portal, "red":self.red_portal, "blue":self.blue_portal}
-        self.random_cooldown = 0
-        self.start_check = False
-
+        return self.ball.position[0] > self.cloud.space[0][0] and self.ball.position[0] < self.cloud.space[1][0] and self.ball.position[1] < self.cloud.space[1][1] and self.ball.position[1] > self.cloud.space[0][1]
+    
     def enable_left_warp(self, event):
         self.lwarp_enable = True
         if event == 0:
@@ -480,6 +552,7 @@ class Pong(object):
         self.blue_portal.override = False
         #self.portals[rwarp].open()
 
+#Responses
     def warp(self, side):
         if self.portal_cooldown >= 100:
             self.ball.hitTally +=1
@@ -501,20 +574,98 @@ class Pong(object):
                 self.ball.position = self.portals[self.portals[self.rwarp].color_out].center
                 theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
                 self.ball.velocity = (self.ball.speed*cos(theta_added+theta_in), (self.ball.speed*sin(theta_added+theta_in)))
+    
+    def reset_game(self, player):
+        self.ball.strike(player)
+        #self.paddle_left.reset()
+        #self.paddle_right.reset()
+        self.block1.destroy()
+        self.creature.destroy()
+        self.cloud.destroy()
 
+        self.randomize_portals()
+        self.catcher = None
+        self.portal_cooldown = 300
+        self.portal_cooldown = 0
+        self.gravity_cooldown = 0
+        self.block_cooldown = 0
+        self.creature_cooldown = 0
+        self.cloud_cooldown = 0
+        self.chaos_cooldown = 0
+        self.gravity = 0.1
+        self.start_check = True
+        self.lwarp_enable = False
+        self.rwarp_enable = False
+        self.lwarp = None
+        self.rwarp = None
+        self.game_over = False
+      
+    def teleport(self):
+        if self.portal_cooldown >= 100:
+            if self.portals[self.catcher].override == True:
+                theta_in = arctan(self.ball.velocity[1]/self.ball.velocity[0])
+                if self.catcher == "cyan" or self.catcher == "orange":
+                    self.ball.position = self.paddle_left.center
+                    theta_out = sign(theta_in)*((pi/2)-abs(theta_in))
+                elif self.catcher == "red" or self.catcher == "blue":
+                    self.ball.position = self.paddle_right.center
+                    theta_out = sign(theta_in)*((pi/2)-abs(theta_in))+pi
+                self.ball.velocity = (self.ball.speed*cos(theta_out), (self.ball.speed*sin(-theta_out)))
+            else:
+                self.ball.position = self.portals[self.portals[self.catcher].color_out].center
+                if self.portals[self.catcher].center[1] == self.portals[self.portals[self.catcher].color_out].center[1]:
+                    self.ball.velocity = (-self.ball.velocity[0], -self.ball.velocity[1])
+            self.portal_cooldown = 0
+
+    def randomize_portals(self):
+        y_positions = [10,490]
+        x_positions = range(100,901)
+        resulting_positions = []
+
+        for portal in range(4):
+            selection = random.choice(x_positions)
+            resulting_positions.append(selection)
+            x_positions.remove(selection)
+
+            for i in range(1,121):
+                if (selection-i) in x_positions:
+                    x_positions.remove(selection-i)
+                if (selection+i) in x_positions:
+                    x_positions.remove(selection+i)
+
+        self.orange_portal = Portal("orange", "cyan", (resulting_positions[0], random.choice(y_positions)))
+        self.cyan_portal = Portal("cyan", "orange", (resulting_positions[1], random.choice(y_positions)))
+        self.red_portal = Portal("red", "blue", (resulting_positions[2], random.choice(y_positions)))
+        self.blue_portal = Portal("blue", "red", (resulting_positions[3], random.choice(y_positions)))
+        self.portals = {"orange":self.orange_portal, "cyan":self.cyan_portal, "red":self.red_portal, "blue":self.blue_portal}
+        self.portal_cooldown = 0
+        self.start_check = False
+    
+    def change_gravity(self):
+        self.gravity = -self.gravity
+        self.gravity_cooldown = 0
+    
     def generate_blocks(self):
         if self.block1.exists == False:
             self.block1.generate(35)
             self.block1.exists = True
             self.block_cooldown = 0
 
-    def hits_block(self):
-        return self.ball.position[0] > self.block1.space[0][0] and self.ball.position[0] < self.block1.space[1][0] and self.ball.position[1] < self.block1.space[1][1] and self.ball.position[1] > self.block1.space[0][1]
-
     def block_bounce(self):
         edge = self.block1.breakout(self.ball.position[0], self.ball.position[1])
         self.ball.reflect(edge)
         self.block_cooldown = 0
+
+    def generate_creature(self):
+        if self.creature.exists == False:
+            self.creature.generate(35)
+            self.creature.exists = True
+            self.creature_cooldown = 0
+
+    def creature_bounce(self):
+        edge = self.creature.breakout(self.ball.position[0],self.ball.position[1])
+        self.ball.reflect(edge)
+        self.creature_cooldown = 0
 
     def generate_cloud(self):
         self.cloud.exists = True
@@ -522,39 +673,10 @@ class Pong(object):
         self.cloud.generate_points()
         self.cloud_cooldown = 0
 
-    def enters_cloud(self):
-        return self.ball.position[0] > self.cloud.space[0][0] and self.ball.position[0] < self.cloud.space[1][0] and self.ball.position[1] < self.cloud.space[1][1] and self.ball.position[1] > self.cloud.space[0][1]
-
     def unleash_chaos(self):
         if self.chaos_cooldown >= 100:
             self.ball.randomize_direction(range(100))
             self.chaos_cooldown = 0
-
-    def step(self):
-        """
-        Calculate the next game state.
-        """
-        self.paddle_right.operate()
-        self.paddle_left.operate()
-        self.ball.accelerate((self.gravity,(pi/2)))
-        self.ball.move()
-        self.portal_cooldown += 5
-        self.random_cooldown += 5
-        self.gravity_cooldown += 5
-        self.block_cooldown += 5
-        self.cloud_cooldown += 5
-        self.chaos_cooldown += 5
-
-        #for testing purposes - delete
-        #self.ball.velocity = (cos(pi/4), sin(-pi/4))
-
-        # Check for events
-        for event, response in zip(self.events, self.responses):
-            if event():
-                response()
-                app.draw() 
-        # Run pong game with time step size of 0.005 seconds
-        root.after(5, self.step)
 
 #Class to create the object which stores information about game results
 class Score(object):
@@ -582,6 +704,7 @@ class Portal(object):
         self.override = False
         self.color_in = color_in
         self.color_out = color_out # portal which serves as exit
+        self.fill_color = "gray11"
         self.center = center
         self.space = ((self.center[0]-50, self.center[1]+5),(self.center[0]+50, self.center[1]-5))
 
@@ -634,6 +757,28 @@ class Cloud(Obstacle):
             random_y = random.randrange(low_y, high_y)
             self.points.append((random_x, random_y))
 
+class Creature(Obstacle):
+    def __init__(self, coordinates, dimension, color,speed):
+        Obstacle.__init__(self, coordinates, dimension, color)
+        self.velocity = (0,speed)
+
+    def breakout(self, ball_x, ball_y):
+        x_contact = abs(ball_x - self.center[1])
+        y_contact = abs(ball_y - self.center[0])
+        theta_contact = arctan(y_contact / x_contact)
+        if theta_contact > 0.7854:
+            return (0 , 1)
+        else:
+            return (1 , 0)
+
+    def move(self):
+        self.center = add(self.center,self.velocity)
+        self.update_space()
+
+    def reflect(self, surface):
+        diagonal = -2 * dot(surface, self.velocity)
+        self.velocity = add(self.velocity, scale(surface, diagonal))
+        
 def dot(x, y):
     """
     2D dot product
@@ -658,10 +803,15 @@ def sign(x):
     """
     return math.copysign(1, x)
 
+def play_music(filename, mode):
+    while True:
+        winsound.PlaySound(filename, mode)
+
 root = tk.Tk()
 score = Score()
 app = GUI(master=root)
-app.master.title("Chaos Pong")
+app.master.title("Pongal")
 app.pong.step()
+thread.start_new_thread(play_music, ("CaraMia.wav",winsound.SND_LOOP))
 app.mainloop()
 root.destroy()
