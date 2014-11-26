@@ -5,9 +5,11 @@ Component Files to include:
 Controls:
 
 W and S - move left player's paddle up and down
+
 A and D - control left player's portals (orange and cyan)
 
 Up and Down - move right player's paddle up and down
+
 Left and Right - control right player's portals (red and blue)
 
 Any other key to start initial game.
