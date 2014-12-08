@@ -47,102 +47,102 @@
 
 '''
 #Psuedocode/Outline
-    import tKinter, numpy, random, tkFont
-    class GUI(Frame):
-        __init__: create grid, create Pong game, bind keys, create widgets, create field space, import graphics
-        bindkeys: control vertical paddle movements
-        createWidgets: create New Game reset button, create quit button
-        importGraphics: import and subsample component image files
-        draw: draw all elements at current iteration onto canvas
-    class Paddle(object):
-        __init__: height, upbutton, downbutton
-        lower: function keypress - set move_down True
-        lift: function keypress - set move_up True
-        stop: function keyrelease - set move operators False
-        reset: return centers to initial positions
-        operate: 
-            if a move operator is True:
-                displace paddle by increment in reference direction
-            update center position
-            call draw
-    class Ball(object):
-        __init__: position(x,y), speed, velocity(x,y), size
-        reflect: physics of bounce ball off object [scaled dot product of surface vector and velocity vector]
-        hitPaddle: calls reflect and increments number of hits tally; if tally>=5, increase ball speed
-        move: update position by adding velocity to current position
-        strike/reset: Handles scoring and New Game; updates score, resets ball parameters
-        accelerate: increase y-component of velocity incrementally each step
-     randomize_direction: multiply speed by components of a randomized angle
-    class Pong(object):
-        __init__: create paddles, create ball, define game events and responses ball hitting upper and lower walls, left and right walls (scoring), and paddles
-     handle events:
-        ball reaching either player’s scoreline
-        ball hitting a paddle
-        ball reaching a boundary of the field
-        ball hitting a portal
-        ball hitting a block
-        ball entering the chaos cloud
-        manual game reset requested
-        portal, gravity, block, or cloud cooldowns reaching limit
-     associate response:
-        update score, reset game
-        either reflect or teleport depending on warp state
-        reflect ball
-        teleport ball to linked portal
-        randomize ball direction
-        reset field conditions
-        introduce respective game element
-        step: update position/velocities/properties of each item in game every n seconds
-            concurrent with mainloop
-    class Score(object):
-        __init__: score keeping object
-        update: increment appropriate player's score
-    class Portal(object):
-        __init__: create portal to connect two points on Pong field’s upper and lower edges
-            create portal center: (x,y)
-            create portal space: [self.space = (((self.center[0] - self.size), (self.center[1] - self.size)), ((self.center[0] + self.size), (self.center[1] + self.size)))
-    class Obstacle(object):
-        Obstacle is a foundation class to be inherited by various obstacles in the game, particularly for the use of storing position, space, and state information.
-        __init__: create coordinate, color, size, visual state (“state”), and existance state parameters (“exists”)
-        update space: in the case of parameter changes, update location and dimensions using:
-            self.space = (((self.center[0] - self.size), (self.center[1] - self.size)), ((self.center[0] + self.size), (self.center[1] + self.size)))
-        generate: set position to random field location: (random.randrange(100,900),random.randrange(100,400))
-            update space to new parameters
-            change visual state to “normal”
-        destroy: reset position to (0,0) and size to 0
-            update space to new parameters
-            change visual state to “hidden”
-    class Block(Obstacle):
-        inherits from obstacle
-        breakout: reflects ball based on side block is hit and self-destructs
-            determines side using:
-                x_contact = abs(ball_x - self.center[0])
-                y_contact = abs(ball_y - self.center[1])
-                theta_contact = arctan(y_contact / x_contact)
-    class Cloud(Obstacle):
-        inherits from obstacle
-        generates_points: creates 20 random points which serve as centers of circles with
-        randomly fluctuating radii (random.randrange(low_x/y, high_y/x)), providing animated indication of position
-    class Creature(Obstacle):
-        inherits from obstacle
-        modifies __init__: adds velocity parameter and last collision counter
-        breakout: resets last collision counter and determines side of collision using:
-            x_contact = abs(ball_x -center[0])
-            y_contact = abs(ball_y -center[1])
+import tKinter, numpy, random, tkFont
+class GUI(Frame):
+    __init__: create grid, create Pong game, bind keys, create widgets, create field space, import graphics
+    bindkeys: control vertical paddle movements
+    createWidgets: create New Game reset button, create quit button
+    importGraphics: import and subsample component image files
+    draw: draw all elements at current iteration onto canvas
+class Paddle(object):
+    __init__: height, upbutton, downbutton
+    lower: function keypress - set move_down True
+    lift: function keypress - set move_up True
+    stop: function keyrelease - set move operators False
+    reset: return centers to initial positions
+    operate: 
+        if a move operator is True:
+            displace paddle by increment in reference direction
+        update center position
+        call draw
+class Ball(object):
+    __init__: position(x,y), speed, velocity(x,y), size
+    reflect: physics of bounce ball off object [scaled dot product of surface vector and velocity vector]
+    hitPaddle: calls reflect and increments number of hits tally; if tally>=5, increase ball speed
+    move: update position by adding velocity to current position
+    strike/reset: Handles scoring and New Game; updates score, resets ball parameters
+    accelerate: increase y-component of velocity incrementally each step
+ randomize_direction: multiply speed by components of a randomized angle
+class Pong(object):
+    __init__: create paddles, create ball, define game events and responses ball hitting upper and lower walls, left and right walls (scoring), and paddles
+ handle events:
+    ball reaching either player's scoreline
+    ball hitting a paddle
+    ball reaching a boundary of the field
+    ball hitting a portal
+    ball hitting a block
+    ball entering the chaos cloud
+    manual game reset requested
+    portal, gravity, block, or cloud cooldowns reaching limit
+ associate response:
+    update score, reset game
+    either reflect or teleport depending on warp state
+    reflect ball
+    teleport ball to linked portal
+    randomize ball direction
+    reset field conditions
+    introduce respective game element
+    step: update position/velocities/properties of each item in game every n seconds
+        concurrent with mainloop
+class Score(object):
+    __init__: score keeping object
+    update: increment appropriate player's score
+class Portal(object):
+    __init__: create portal to connect two points on Pong field's upper and lower edges
+        create portal center: (x,y)
+        create portal space: [self.space = (((self.center[0] - self.size), (self.center[1] - self.size)), ((self.center[0] + self.size), (self.center[1] + self.size)))
+class Obstacle(object):
+    Obstacle is a foundation class to be inherited by various obstacles in the game, particularly for the use of storing position, space, and state information.
+    __init__: create coordinate, color, size, visual state ("state"), and existance state parameters ("exists")
+    update space: in the case of parameter changes, update location and dimensions using:
+        self.space = (((self.center[0] - self.size), (self.center[1] - self.size)), ((self.center[0] + self.size), (self.center[1] + self.size)))
+    generate: set position to random field location: (random.randrange(100,900),random.randrange(100,400))
+        update space to new parameters
+        change visual state to "normal"
+    destroy: reset position to (0,0) and size to 0
+        update space to new parameters
+        change visual state to "hidden"
+class Block(Obstacle):
+    inherits from obstacle
+    breakout: reflects ball based on side block is hit and self-destructs
+        determines side using:
+            x_contact = abs(ball_x - self.center[0])
+            y_contact = abs(ball_y - self.center[1])
             theta_contact = arctan(y_contact / x_contact)
-        check_collision: Checks for same object multi-collisions.
-        move: Increment Creature's position assuming no collisions
-             update center to old_center + velocity
-             update space with new parameters
-             increase last collision counter
-        reflect: Alter the creature's velocity for a perfectly elastic collision with a surface defined by the unit normal surface:
-             diagonal = -2 * dot(surface,velocity)
-             velocity = add(velocity, scale(surface, diagonal))
-    def dot: add dotproduct functionality: x[0]*y[0] + x[1]*y[1]
-    def scale: add scalar multiplication: (x[0]*a, x[1]*a)
-    def add: add vector addition: (x[0]+y[0], x[1]+y[1])
-    def sign: get sign of value using copysign
-    def play_music: loops music in the background using winsound
+class Cloud(Obstacle):
+    inherits from obstacle
+    generates_points: creates 20 random points which serve as centers of circles with
+    randomly fluctuating radii (random.randrange(low_x/y, high_y/x)), providing animated indication of position
+class Creature(Obstacle):
+    inherits from obstacle
+    modifies __init__: adds velocity parameter and last collision counter
+    breakout: resets last collision counter and determines side of collision using:
+        x_contact = abs(ball_x -center[0])
+        y_contact = abs(ball_y -center[1])
+        theta_contact = arctan(y_contact / x_contact)
+    check_collision: Checks for same object multi-collisions.
+    move: Increment Creature's position assuming no collisions
+         update center to old_center + velocity
+         update space with new parameters
+         increase last collision counter
+    reflect: Alter the creature's velocity for a perfectly elastic collision with a surface defined by the unit normal surface:
+         diagonal = -2 * dot(surface,velocity)
+         velocity = add(velocity, scale(surface, diagonal))
+def dot: add dotproduct functionality: x[0]*y[0] + x[1]*y[1]
+def scale: add scalar multiplication: (x[0]*a, x[1]*a)
+def add: add vector addition: (x[0]+y[0], x[1]+y[1])
+def sign: get sign of value using copysign
+def play_music: loops music in the background using winsound
 '''
 
 import Tkinter as tk
